@@ -1,0 +1,318 @@
+version: '3.7'
+
+networks:
+  zookeeper-clickhouse-net:
+    name: zookeeper-clickhouse-net
+    driver: bridge
+
+services:
+  zookeeper1:
+    # docker container所使用的docker image
+    image: zookeeper:3.7
+    hostname: zookeeper1
+    container_name: zookeeper1
+    # 配置docker container和宿主机的端口映射
+    ports:
+      - "2181:2181"
+      - "8081:8080"
+      - "3888:3888"
+    # 配置docker container的环境变量
+    ulimits:
+      nproc: 65535
+      nofile:
+        soft: 262144
+        hard: 262144
+    environment:
+      # 当前zk实例的id
+      ZOO_MY_ID: 1
+      # 整个zk集群的机器、端口列表
+      ZOO_SERVERS: server.1=0.0.0.0:2888:3888;2181 server.2=zookeeper2:2888:3888;2181 server.3=zookeeper3:2888:3888;2181
+    # 将docker container上的路径挂载到宿主机上 实现宿主机和docker container的数据共享
+    volumes:
+      - ${DATA_DIR}/zookeeper/${CLUSTER_DIR}/zookeeper1/data:/data
+      - ${DATA_DIR}/zookeeper/${CLUSTER_DIR}/zookeeper1/datalog:/datalog
+    # 当前docker container加入的隔离网络
+    networks:
+      - zookeeper-clickhouse-net
+
+  zookeeper2:
+    image: zookeeper:3.7
+    hostname: zookeeper2
+    container_name: zookeeper2
+    ports:
+      - "2182:2181"
+      - "8082:8080"
+      - "3882:3888"
+    ulimits:
+      nproc: 65535
+      nofile:
+        soft: 262144
+        hard: 262144
+    environment:
+      ZOO_MY_ID: 2
+      ZOO_SERVERS: server.1=zookeeper1:2888:3888;2181 server.2=0.0.0.0:2888:3888;2181 server.3=zookeeper3:2888:3888;2181
+    volumes:
+      - ${DATA_DIR}/zookeeper/${CLUSTER_DIR}/zookeeper2/data:/data
+      - ${DATA_DIR}/zookeeper/${CLUSTER_DIR}/zookeeper2/datalog:/datalog
+    networks:
+      - zookeeper-clickhouse-net
+
+  zookeeper3:
+    image: zookeeper:3.7
+    hostname: zookeeper3
+    container_name: zookeeper3
+    ports:
+      - "2183:2181"
+      - "8083:8080"
+      - "3883:3888"
+    ulimits:
+      nproc: 65535
+      nofile:
+        soft: 262144
+        hard: 262144
+    environment:
+      ZOO_MY_ID: 3
+      ZOO_SERVERS: server.1=zookeeper1:2888:3888;2181 server.2=zookeeper2:2888:3888;2181 server.3=0.0.0.0:2888:3888;2181
+    volumes:
+      - ${DATA_DIR}/zookeeper/${CLUSTER_DIR}/zookeeper3/data:/data
+      - ${DATA_DIR}/zookeeper/${CLUSTER_DIR}/zookeeper3/datalog:/datalog
+    networks:
+      - zookeeper-clickhouse-net
+
+
+  ##################################clickhouse####################################################
+  clickhouse1:
+    image: yandex/clickhouse-server
+    container_name: clickhouse1
+    hostname: clickhouse-1-cluster.com
+    ports:
+      # http_port
+      # tcp_port
+      # mysql_port
+      # interserver_http_port
+      - "8123:8123"
+      - "9000:9000"
+      - "9004:9004"
+      - "9009:9009"
+    expose:
+      - 8123
+      - 9000
+      - 9004
+      - 9009
+    ulimits:
+      nproc: 65535
+      nofile:
+        soft: 262144
+        hard: 262144
+    depends_on:
+      - zookeeper1
+      - zookeeper2
+      - zookeeper3
+    environment:
+      - TZ=Asia/Shanghai
+      # - CLICKHOUSE_USER=root
+      # - CLICKHOUSE_PASSWORD=123456
+    volumes:
+      #- ${DATA_DIR}/clickhouse/${CLUSTER_DIR}/clickhouse1/data:/var/lib/clickhouse
+      - ${DATA_DIR}/clickhouse/${CLUSTER_DIR}/clickhouse1/datalog:/var/log/clickhouse-server
+      # 按需使用
+      #- ${SERVICES_DIR}/clickhouse/${CLICKHOUSE_CLUSTER_DIR}/clickhouse1/clickhouse-server:/etc/clickhouse-server
+      - ${SERVICES_DIR}/clickhouse/${CLUSTER_DIR}/config.xml:/etc/clickhouse-server/config.xml
+      - ${SERVICES_DIR}/clickhouse/${CLUSTER_DIR}/users.xml:/etc/clickhouse-server/users.xml
+      - ${SERVICES_DIR}/clickhouse/${CLUSTER_DIR}/clickhouse1/metrika.xml:/etc/clickhouse-server/metrika.xml
+    networks:
+      - zookeeper-clickhouse-net
+
+  clickhouse2:
+    image: yandex/clickhouse-server
+    container_name: clickhouse2
+    hostname: clickhouse-2-cluster.com
+    ports:
+      - "8243:8123"
+      - "9200:9000"
+      - "9204:9004"
+      - "9209:9009"
+    expose:
+      - 8223
+      - 9200
+      - 9204
+      - 9209
+    ulimits:
+      nproc: 65535
+      nofile:
+        soft: 262144
+        hard: 262144
+    depends_on:
+      - zookeeper1
+      - zookeeper2
+      - zookeeper3
+    environment:
+      - TZ=Asia/Shanghai
+    volumes:
+      #- ${DATA_DIR}/clickhouse/${CLUSTER_DIR}/clickhouse2/data:/var/lib/clickhouse
+      - ${DATA_DIR}/clickhouse/${CLUSTER_DIR}/clickhouse2/datalog:/var/log/clickhouse-server
+      - ${SERVICES_DIR}/clickhouse/${CLUSTER_DIR}/config.xml:/etc/clickhouse-server/config.xml
+      - ${SERVICES_DIR}/clickhouse/${CLUSTER_DIR}/users.xml:/etc/clickhouse-server/users.xml
+      - ${SERVICES_DIR}/clickhouse/${CLUSTER_DIR}/clickhouse2/metrika.xml:/etc/clickhouse-server/metrika.xml
+    networks:
+      - zookeeper-clickhouse-net
+
+  clickhouse3:
+    image: yandex/clickhouse-server
+    container_name: clickhouse3
+    hostname: clickhouse-3-cluster.com
+    ports:
+      - "8323:8123"
+      - "9300:9000"
+      - "9304:9004"
+      - "9309:9009"
+    expose:
+      - 8323
+      - 9300
+      - 9304
+      - 9309
+    ulimits:
+      nproc: 65535
+      nofile:
+        soft: 262144
+        hard: 262144
+    depends_on:
+      - zookeeper1
+      - zookeeper2
+      - zookeeper3
+    environment:
+      - TZ=Asia/Shanghai
+    volumes:
+      #- ${DATA_DIR}/clickhouse/${CLICKHOUSE_CLUSTER_DIR}/clickhouse3/data:/var/lib/clickhouse
+      - ${DATA_DIR}/clickhouse/${CLUSTER_DIR}/clickhouse3/datalog:/var/log/clickhouse-server
+      - ${SERVICES_DIR}/clickhouse/${CLUSTER_DIR}/config.xml:/etc/clickhouse-server/config.xml
+      - ${SERVICES_DIR}/clickhouse/${CLUSTER_DIR}/users.xml:/etc/clickhouse-server/users.xml
+      - ${SERVICES_DIR}/clickhouse/${CLUSTER_DIR}/clickhouse3/metrika.xml:/etc/clickhouse-server/metrika.xml
+    networks:
+      - zookeeper-clickhouse-net
+
+  clickhouse4:
+    image: yandex/clickhouse-server
+    container_name: clickhouse4
+    hostname: clickhouse-4-cluster.com
+    ports:
+      - "8423:8123"
+      - "9400:9000"
+      - "9404:9004"
+      - "9409:9009"
+    expose:
+      - 8423
+      - 9400
+      - 9404
+      - 9409
+    ulimits:
+      nproc: 65535
+      nofile:
+        soft: 262144
+        hard: 262144
+    depends_on:
+      - zookeeper1
+      - zookeeper2
+      - zookeeper3
+    environment:
+      - TZ=Asia/Shanghai
+    volumes:
+      #- ${DATA_DIR}/clickhouse/${CLUSTER_DIR}/clickhouse4/data:/var/lib/clickhouse
+      - ${DATA_DIR}/clickhouse/${CLUSTER_DIR}/clickhouse4/datalog:/var/log/clickhouse-server
+      - ${SERVICES_DIR}/clickhouse/${CLUSTER_DIR}/config.xml:/etc/clickhouse-server/config.xml
+      - ${SERVICES_DIR}/clickhouse/${CLUSTER_DIR}/users.xml:/etc/clickhouse-server/users.xml
+      - ${SERVICES_DIR}/clickhouse/${CLUSTER_DIR}/clickhouse4/metrika.xml:/etc/clickhouse-server/metrika.xml
+    networks:
+      - zookeeper-clickhouse-net
+
+#  clickhouse5:
+#    image: yandex/clickhouse-server
+#    container_name: clickhouse5
+#    hostname: clickhouse-5-cluster.com
+#    ports:
+#      - "8523:8123"
+#      - "9500:9000"
+#      - "9504:9004"
+#      - "9509:9009"
+#    expose:
+#      - 8523
+#      - 9500
+#      - 9504
+#      - 9509
+#    ulimits:
+#      nproc: 65535
+#      nofile:
+#        soft: 262144
+#        hard: 262144
+#    depends_on:
+#      - zookeeper1
+#      - zookeeper2
+#      - zookeeper3
+#    environment:
+#      - TZ=Asia/Shanghai
+#    volumes:
+#      #- ${DATA_DIR}/clickhouse/${CLICKHOUSE_CLUSTER_DIR}/clickhouse5/data:/var/lib/clickhouse
+#      - ${DATA_DIR}/clickhouse/${CLUSTER_DIR}/clickhouse5/datalog:/var/log/clickhouse-server
+#      - ${SERVICES_DIR}/clickhouse/${CLUSTER_DIR}/config.xml:/etc/clickhouse-server/config.xml
+#      - ${SERVICES_DIR}/clickhouse/${CLUSTER_DIR}/users.xml:/etc/clickhouse-server/users.xml
+#      - ${SERVICES_DIR}/clickhouse/${CLUSTER_DIR}/clickhouse5/metrika.xml:/etc/clickhouse-server/metrika.xml
+#    networks:
+#      - zookeeper-clickhouse-net
+#
+#  clickhouse6:
+#    image: yandex/clickhouse-server
+#    container_name: clickhouse6
+#    hostname: clickhouse-6-cluster.com
+#    ports:
+#      - "8623:8123"
+#      - "9600:9000"
+#      - "9604:9004"
+#      - "9609:9009"
+#    expose:
+#      - 8623
+#      - 9600
+#      - 9604
+#      - 9609
+#    ulimits:
+#      nproc: 65535
+#      nofile:
+#        soft: 262144
+#        hard: 262144
+#    depends_on:
+#      - zookeeper1
+#      - zookeeper2
+#      - zookeeper3
+#    environment:
+#      - TZ=Asia/Shanghai
+#    volumes:
+#      #- ${DATA_DIR}/clickhouse/${CLICKHOUSE_CLUSTER_DIR}/clickhouse6/data:/var/lib/clickhouse
+#      - ${DATA_DIR}/clickhouse/${CLUSTER_DIR}/clickhouse6/datalog:/var/log/clickhouse-server
+#
+#      - ${SERVICES_DIR}/clickhouse/${CLUSTER_DIR}/config.xml:/etc/clickhouse-server/config.xml
+#      - ${SERVICES_DIR}/clickhouse/${CLUSTER_DIR}/users.xml:/etc/clickhouse-server/users.xml
+#
+#      - ${SERVICES_DIR}/clickhouse/${CLUSTER_DIR}/clickhouse6/metrika.xml:/etc/clickhouse-server/metrika.xml
+#    networks:
+#      - zookeeper-clickhouse-net
+
+
+##############################################其他容器服务####################################################################
+#  mysql57:
+#    image: mysql:5.7
+#    container_name: mysql57
+#    ports:
+#      - "3300:3306"
+#    volumes:
+#      - ${SERVICES_DIR}/mysql/mysql.cnf:/etc/mysql/conf.d/mysql.cnf:rw
+#      #- ${DATA_DIR}/mysql57:/var/lib/mysql/:rw
+#      #- ${DATA_DIR}/mysql57/mysql.error.log:/var/lib/mysql/mysql.error.log:ro
+#      #- ${DATA_DIR}/mysql57/mysql.slow.log:/var/lib/mysql/mysql.slow.log:ro
+#    restart: no
+#    environment:
+#      MYSQL_ROOT_PASSWORD: 123456
+#      TZ: "$TZ"
+#    networks:
+#      - zookeeper-clickhouse-net
+
+
+
