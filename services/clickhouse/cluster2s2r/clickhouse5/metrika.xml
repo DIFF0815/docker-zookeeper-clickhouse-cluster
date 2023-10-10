@@ -1,0 +1,90 @@
+<yandex>
+
+    <!-- 集群配置 -->
+    <clickhouse_remote_servers>
+        <cluster_2s2r>
+
+            <!-- 数据分片1  -->
+            <shard>
+                <internal_replication>true</internal_replication>
+                <replica>
+                    <host>clickhouse-1-cluster.com</host>
+                    <port>9000</port>
+                    <user>default</user>
+                    <password></password>
+                </replica>
+                <replica>
+                    <host>clickhouse-2-cluster.com</host>
+                    <port>9000</port>
+                    <user>default</user>
+                    <password></password>
+                </replica>
+                <replica>
+                    <host>clickhouse-3-cluster.com</host>
+                    <port>9000</port>
+                    <user>default</user>
+                    <password></password>
+                </replica>
+            </shard>
+
+            <!-- 数据分片2  -->
+            <shard>
+                <internal_replication>true</internal_replication>
+                <replica>
+                    <host>clickhouse-4-cluster.com</host>
+                    <port>9000</port>
+                    <user>default</user>
+                    <password></password>
+                </replica>
+                <replica>
+                    <host>clickhouse-5-cluster.com</host>
+                    <port>9000</port>
+                    <user>default</user>
+                    <password></password>
+                </replica>
+                <replica>
+                    <host>clickhouse-6-cluster.com</host>
+                    <port>9000</port>
+                    <user>default</user>
+                    <password></password>
+                </replica>
+            </shard>
+        </cluster_2s2r>
+    </clickhouse_remote_servers>
+
+    <!-- ZK  -->
+    <zookeeper-servers>
+        <node index="1">
+            <host>zookeeper1</host>
+            <port>2181</port>
+        </node>
+        <node index="2">
+            <host>zookeeper2</host>
+            <port>2181</port>
+        </node>
+        <node index="3">
+            <host>zookeeper3</host>
+            <port>2181</port>
+        </node>
+    </zookeeper-servers>
+
+    <macros>
+        <layer>01</layer>
+        <shard>02</shard>
+        <replica>cluster_2s2r_02_02</replica>
+    </macros>
+
+    <networks>
+        <ip>::/0</ip>
+    </networks>
+
+    <!-- 数据压缩算法  -->
+    <clickhouse_compression>
+        <case>
+            <min_part_size>10000000000</min_part_size>
+            <min_part_size_ratio>0.01</min_part_size_ratio>
+            <method>lz4</method>
+        </case>
+    </clickhouse_compression>
+
+</yandex>
